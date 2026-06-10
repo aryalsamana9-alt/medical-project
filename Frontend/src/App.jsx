@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
+import DashboardLayout from "./components/DashboardLayout";
 
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
@@ -17,51 +18,190 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Navbar />
-        <main className="main-content">
-          <Routes>
-            {/* Public routes */}
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register/name" element={<RegisterName />} />
-            <Route path="/register/dob" element={<RegisterDOB />} />
-            <Route path="/register/password" element={<RegisterPassword />} />
+        <Routes>
+          {/* Public routes — use original Navbar */}
+          <Route
+            path="/"
+            element={
+              <>
+                <Navbar />
+                <main className="main-content">
+                  <Landing />
+                </main>
+              </>
+            }
+          />
+          <Route
+            path="/login"
+            element={
+              <>
+                <Navbar />
+                <main className="main-content">
+                  <Login />
+                </main>
+              </>
+            }
+          />
+          <Route
+            path="/register/name"
+            element={
+              <>
+                <Navbar />
+                <main className="main-content">
+                  <RegisterName />
+                </main>
+              </>
+            }
+          />
+          <Route
+            path="/register/dob"
+            element={
+              <>
+                <Navbar />
+                <main className="main-content">
+                  <RegisterDOB />
+                </main>
+              </>
+            }
+          />
+          <Route
+            path="/register/password"
+            element={
+              <>
+                <Navbar />
+                <main className="main-content">
+                  <RegisterPassword />
+                </main>
+              </>
+            }
+          />
 
-            {/* Protected routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
+          {/* Protected routes — use DashboardLayout with sidebar + bottom nav */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
                   <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/home"
-              element={
-                <ProtectedRoute>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
                   <Home />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
                   <Profile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/form"
-              element={
-                <ProtectedRoute>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/form"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
                   <FormPage />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </main>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/doctors"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <div className="placeholder-page">
+                    <div className="placeholder-icon">👨‍⚕️</div>
+                    <h2>Doctors Directory</h2>
+                    <p>Browse and connect with healthcare professionals.</p>
+                  </div>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <div className="placeholder-page">
+                    <div className="placeholder-icon">💬</div>
+                    <h2>Messages</h2>
+                    <p>Your secure healthcare messaging center.</p>
+                  </div>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/medical-history"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <div className="placeholder-page">
+                    <div className="placeholder-icon">📋</div>
+                    <h2>Medical History</h2>
+                    <p>Complete health records and visit history.</p>
+                  </div>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/appointments"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <div className="placeholder-page">
+                    <div className="placeholder-icon">📅</div>
+                    <h2>Appointments</h2>
+                    <p>Schedule, view, and manage your appointments.</p>
+                  </div>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/quick-contact"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <div className="placeholder-page">
+                    <div className="placeholder-icon">📞</div>
+                    <h2>Quick Contact</h2>
+                    <p>Get instant support from our healthcare team.</p>
+                  </div>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <div className="placeholder-page">
+                    <div className="placeholder-icon">⚙️</div>
+                    <h2>Settings</h2>
+                    <p>Manage your account preferences and security.</p>
+                  </div>
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
       </BrowserRouter>
     </AuthProvider>
   );
