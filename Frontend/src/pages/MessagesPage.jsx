@@ -64,6 +64,8 @@ export default function MessagesPage() {
   } = useMedical();
 
   const [draft, setDraft] = useState('');
+  /** On mobile, when the user opens a chat, we hide the doctor list. */
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -77,8 +79,21 @@ export default function MessagesPage() {
 
   // Focus input when switching conversations
   useEffect(() => {
-    inputRef.current?.focus();
+    if (activeChatDoctorId) {
+      inputRef.current?.focus();
+      setMobileShowChat(true);
+    }
   }, [activeChatDoctorId]);
+
+  const handleSelectDoctor = (docId) => {
+    if (!conversations[docId]) startConversation(docId);
+    else setActiveChatDoctorId(docId);
+  };
+
+  const handleBackToList = () => {
+    setMobileShowChat(false);
+    setActiveChatDoctorId(null);
+  };
 
   const handleSend = useCallback(() => {
     const text = draft.trim();
@@ -108,237 +123,172 @@ export default function MessagesPage() {
     }
   };
 
-  return (
-    <div className="content-page" style={{ padding: 0 }}>
-      <h1 style={{ marginBottom: '1rem', padding: '0 0 0 0' }}>💬 Messages</h1>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '300px 1fr',
-        gap: '1px',
-        background: 'var(--border)',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-        minHeight: '65vh',
-        boxShadow: 'var(--shadow-md)',
-      }}>
-        {/* ----- SIDEBAR: Doctor list ----- */}
-        <div style={{ background: 'var(--card-bg)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-light)' }}>
-            <h3 style={{ fontSize: '1rem', margin: 0 }}>Doctors</h3>
+  // ==========================================================================
+  // RENDER: Doctor list sidebar (shared by both mobile & desktop via CSS)
+  // ==========================================================================
+  const renderDoctorList = () => (
+    <div className="msg-sidebar">
+      <div className="msg-sidebar-header">
+        <h3>Doctors</h3>
+      </div>
+      <div className="msg-sidebar-list">
+        {doctors.map((doc) => {
+          const conv = conversations[doc.id];
+          const lastMsg = conv?.messages?.[conv.messages.length - 1];
+          const isActive = doc.id === activeChatDoctorId;
+          return (
+            <div
+              key={doc.id}
+              onClick={() => handleSelectDoctor(doc.id)}
+              className={`msg-conversation ${isActive ? 'msg-conversation-active' : ''}`}
+            >
+              <div className="msg-conversation-avatar">
+                {doc.initials}
+              </div>
+              <div className="msg-conversation-body">
+                <div className="msg-conversation-name">{doc.name}</div>
+                <div className="msg-conversation-specialty">{doc.specialty}</div>
+                {lastMsg && (
+                  <div className="msg-conversation-preview">
+                    {lastMsg.text.substring(0, 40)}{lastMsg.text.length > 40 ? '...' : ''}
+                  </div>
+                )}
+              </div>
+              <div className="msg-conversation-meta">
+                <span
+                  className={`msg-availability-dot ${doc.isAvailable ? 'msg-available' : 'msg-unavailable'}`}
+                />
+                {lastMsg && <span className="msg-conversation-time">{formatTime(lastMsg.timestamp)}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ==========================================================================
+  // RENDER: Main chat pane
+  // ==========================================================================
+  const renderChatPane = () => {
+    if (!activeDoctor) {
+      return (
+        <div className="msg-empty-chat">
+          <div className="msg-empty-chat-icon">💬</div>
+          <h3>Your Messages</h3>
+          <p>Select a doctor from the list to start chatting.</p>
+          <button className="btn-primary" onClick={() => navigate('/doctors')}>Find a Doctor</button>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {/* Chat header */}
+        <div className="msg-chat-header">
+          <div className="msg-chat-header-left">
+            {/* Back button — visible only on mobile */}
+            <button
+              className="msg-back-btn"
+              onClick={handleBackToList}
+              aria-label="Back to doctor list"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+            <div className="msg-chat-avatar">
+              {activeDoctor.initials}
+            </div>
+            <div className="msg-chat-header-info">
+              <h4>{activeDoctor.name}</h4>
+              <span>{activeDoctor.specialty}</span>
+            </div>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
-            {doctors.map((doc) => {
-              const conv = conversations[doc.id];
-              const lastMsg = conv?.messages?.[conv.messages.length - 1];
-              const isActive = doc.id === activeChatDoctorId;
-              return (
-                <div
-                  key={doc.id}
-                  onClick={() => {
-                    if (!conversations[doc.id]) startConversation(doc.id);
-                    else setActiveChatDoctorId(doc.id);
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    padding: '0.75rem', borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer', background: isActive ? 'var(--primary-light)' : 'transparent',
-                    transition: 'background var(--transition-fast)',
-                  }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'var(--bg-alt)'; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <div style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0,
-                  }}>
-                    {doc.initials}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-h)' }}>
-                      {doc.name}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 500 }}>
-                      {doc.specialty}
-                    </div>
-                    {lastMsg && (
-                      <div style={{
-                        fontSize: '0.78rem', color: 'var(--text-muted)',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                      }}>
-                        {lastMsg.text.substring(0, 40)}{lastMsg.text.length > 40 ? '...' : ''}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
-                    <span style={{
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: doc.isAvailable ? 'var(--success)' : 'var(--text-muted)',
-                      flexShrink: 0,
-                    }} />
-                    {lastMsg && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{formatTime(lastMsg.timestamp)}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <button className="btn-secondary btn-sm" onClick={() => openBookingForDoctor(activeDoctor.id)}>
+            📅 Book
+          </button>
         </div>
 
-        {/* ----- MAIN CHAT PANE ----- */}
-        <div style={{ background: 'var(--card-bg)', display: 'flex', flexDirection: 'column' }}>
-          {activeDoctor ? (
-            <>
-              {/* Chat header */}
-              <div style={{
-                padding: '1rem', borderBottom: '1px solid var(--border-light)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{
-                    width: 40, height: 40, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontWeight: 700, fontSize: '0.85rem',
-                  }}>
-                    {activeDoctor.initials}
-                  </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1rem' }}>{activeDoctor.name}</h4>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{activeDoctor.specialty}</span>
-                  </div>
-                </div>
-                <button className="btn-secondary btn-sm" onClick={() => openBookingForDoctor(activeDoctor.id)}>
-                  📅 Book
-                </button>
-              </div>
-
-              {/* Messages */}
-              <div style={{
-                flex: 1, overflowY: 'auto', padding: '1.25rem',
-                display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--bg)',
-              }}>
-                {!activeConv?.messages?.length && (
-                  <div style={{ textAlign: 'center', marginTop: '3rem', color: 'var(--text-muted)' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '0.5rem', opacity: 0.4 }}>💬</div>
-                    <p>Send a message to start your consultation.</p>
-                  </div>
-                )}
-                {activeConv?.messages?.map((msg, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      maxWidth: '72%',
-                      padding: '0.75rem 1rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: '0.925rem',
-                      lineHeight: 1.55,
-                      alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                      background: msg.sender === 'user'
-                        ? 'linear-gradient(135deg, var(--primary), #3a7bc8)'
-                        : 'var(--card-bg)',
-                      color: msg.sender === 'user' ? '#fff' : 'var(--text)',
-                      borderBottomRightRadius: msg.sender === 'user' ? 'var(--radius-xs)' : 'var(--radius-md)',
-                      borderBottomLeftRadius: msg.sender === 'doctor' ? 'var(--radius-xs)' : 'var(--radius-md)',
-                      boxShadow: 'var(--shadow-xs)',
-                      animation: 'pageEnter 0.3s ease-out',
-                    }}
-                  >
-                    {msg.text}
-                    <div style={{
-                      fontSize: '0.65rem', marginTop: '0.3rem',
-                      color: msg.sender === 'user' ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)',
-                    }}>
-                      {formatTime(msg.timestamp)}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Typing indicator */}
-                {isAITyping && (
-                  <div style={{
-                    alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    padding: '0.5rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem',
-                  }}>
-                    <span>Doctor is typing</span>
-                    <span style={{ display: 'flex', gap: '4px' }}>
-                      {[0, 1, 2].map((i) => (
-                        <span
-                          key={i}
-                          style={{
-                            width: 6, height: 6, borderRadius: '50%', background: 'var(--text-muted)',
-                            animation: `typingBounce 1.4s ease-in-out infinite`,
-                            animationDelay: `${i * 0.2}s`,
-                          }}
-                        />
-                      ))}
-                    </span>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Input */}
-              <div style={{
-                padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-light)',
-                display: 'flex', gap: '0.75rem',
-              }}>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Type your message..."
-                  maxLength={500}
-                  style={{
-                    flex: 1, padding: '0.7rem 1rem',
-                    border: '2px solid var(--border)', borderRadius: 'var(--radius-full)',
-                    fontSize: '0.925rem', fontFamily: 'var(--sans)', outline: 'none',
-                    transition: 'border-color var(--transition-fast)',
-                  }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--primary-glow)'; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={!draft.trim() || isAITyping}
-                  style={{
-                    width: 44, height: 44, borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                    border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: '0 4px 12px var(--primary-glow)',
-                    opacity: (!draft.trim() || isAITyping) ? 0.5 : 1,
-                    transition: 'all var(--transition-fast)',
-                  }}
-                >
-                  ➤
-                </button>
-              </div>
-            </>
-          ) : (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              height: '100%', color: 'var(--text-muted)', gap: '0.75rem',
-            }}>
-              <div style={{ fontSize: '4rem', opacity: 0.5 }}>💬</div>
-              <h3>Your Messages</h3>
-              <p>Select a doctor from the list to start chatting.</p>
-              <button className="btn-primary btn-sm" onClick={() => navigate('/doctors')}>Find a Doctor</button>
+        {/* Messages */}
+        <div className="msg-chat-body">
+          {!activeConv?.messages?.length && (
+            <div className="msg-chat-empty-state">
+              <div>💬</div>
+              <p>Send a message to start your consultation.</p>
             </div>
           )}
+          {activeConv?.messages?.map((msg, i) => (
+            <div
+              key={i}
+              className={`msg-bubble ${msg.sender === 'user' ? 'msg-bubble-sent' : 'msg-bubble-received'}`}
+            >
+              {msg.text}
+              <div className="msg-bubble-time">
+                {formatTime(msg.timestamp)}
+              </div>
+            </div>
+          ))}
+
+          {/* Typing indicator */}
+          {isAITyping && (
+            <div className="msg-typing-indicator">
+              <span>Doctor is typing</span>
+              <span className="msg-typing-dots">
+                <span /><span /><span />
+              </span>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
+
+        {/* Input */}
+        <div className="msg-chat-input">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message..."
+            maxLength={500}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!draft.trim() || isAITyping}
+            className="msg-send-btn"
+            aria-label="Send message"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+      </>
+    );
+  };
+
+  return (
+    <div className="content-page msg-page">
+      <div className="msg-page-header">
+        <h1>💬 Messages</h1>
       </div>
 
-      {/* Inline keyframe for typing dots (not injected globally on purpose) */}
-      <style>{`
-        @keyframes typingBounce {
-          0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-          30% { transform: translateY(-7px); opacity: 1; }
-        }
-      `}</style>
+      {/* ============ MASTER-DETAIL LAYOUT ============ */}
+      <div className="msg-master-detail">
+        {/* Doctor List — hidden on mobile when chat is active */}
+        <div className={`msg-pane-list ${mobileShowChat && activeDoctor ? 'msg-pane-list--hidden-mobile' : ''}`}>
+          {renderDoctorList()}
+        </div>
+
+        {/* Chat Pane — hidden on mobile when no chat is selected */}
+        <div className={`msg-pane-chat ${!mobileShowChat || !activeDoctor ? 'msg-pane-chat--hidden-mobile' : ''}`}>
+          {renderChatPane()}
+        </div>
+      </div>
     </div>
   );
 }

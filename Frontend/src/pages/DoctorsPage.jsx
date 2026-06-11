@@ -22,7 +22,7 @@ export default function DoctorsPage() {
         <button className="btn-primary btn-sm" onClick={() => navigate('/quiz')}>🔍 Match Me Quiz</button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
+      <div className="doctors-grid">
         {doctors.map((doc) => (
           <div
             key={doc.id}
