@@ -18,6 +18,7 @@ import FormPage from "./pages/FormPage";
 import DoctorsPage from "./pages/DoctorsPage";
 import MessagesPage from "./pages/MessagesPage";
 import QuizPage from "./pages/QuizPage";
+import AppointmentsPage from "./pages/AppointmentsPage";
 
 export default function App() {
   return (
@@ -173,11 +174,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <DashboardLayout>
-                  <div className="placeholder-page">
-                    <div className="placeholder-icon">📅</div>
-                    <h2>Appointments</h2>
-                    <p>Schedule, view, and manage your appointments.</p>
-                  </div>
+                  <AppointmentsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             }

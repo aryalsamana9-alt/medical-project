@@ -8,16 +8,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fastapi import FastAPI
 from routes.auth import router as auth_router
 from routes.forms import router as forms_router
+from routes.appointments import router as appointments_router
 
 app = FastAPI(
     title="Health App API",
-    description="Backend API for the Health App MVP — authentication and form submissions.",
+    description="Backend API for the Health App MVP — authentication, form submissions, and appointment booking.",
     version="1.0.0",
 )
 
 # Include routers with /api prefix
 app.include_router(auth_router, prefix="/api")
 app.include_router(forms_router, prefix="/api")
+app.include_router(appointments_router, prefix="/api")
 
 
 @app.get("/")

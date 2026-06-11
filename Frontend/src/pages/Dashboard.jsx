@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { useMedical } from "../context/MedicalContext";
 
 // ==========================================================================
 // QUICK ACTION CARDS DATA
@@ -323,10 +324,130 @@ function getStatusClass(status) {
 // ==========================================================================
 export default function Dashboard() {
   const { user } = useAuth();
+  const { bookings } = useMedical();
   const firstName = user?.full_name?.split(" ")[0] || "Patient";
+
+  // Calculate appointment stats from bookings
+  const totalAppointments = bookings.length;
+  const upcomingAppointments = bookings.filter(
+    b => b.status === "Confirmed" || b.status === "Pending" || b.status === "confirmed"
+  ).length;
+  const completedAppointments = bookings.filter(
+    b => b.status === "Completed" || b.status === "completed"
+  ).length;
+
+  // Get next upcoming appointment
+  const sortedUpcoming = bookings
+    .filter(b => b.status === "Confirmed" || b.status === "Pending" || b.status === "confirmed")
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const nextAppointment = sortedUpcoming[0] || null;
+
+  // Format next appointment subtitle
+  const nextAppointmentSubtitle = nextAppointment
+    ? `Next: ${new Date(nextAppointment.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}, ${nextAppointment.timeSlot || 'TBD'}`
+    : 'No upcoming appointments';
 
   return (
     <div className="dashboard-home">
+      {/* ============ APPOINTMENT SUMMARY CARDS ============ */}
+      {bookings.length > 0 && (
+        <section className="dashboard-section" aria-labelledby="appointment-summary-heading">
+          <div className="section-header">
+            <h2 id="appointment-summary-heading">Appointment Summary</h2>
+            <Link to="/appointments" className="section-link">
+              View All
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </Link>
+          </div>
+          <div className="health-overview-grid">
+            <div className="health-overview-card">
+              <div className="health-overview-icon health-overview-trend-up">
+                <OverviewIcon name="calendar" />
+              </div>
+              <div className="health-overview-body">
+                <span className="health-overview-value">{totalAppointments}</span>
+                <h3 className="health-overview-title">Total Appointments</h3>
+                <p className="health-overview-subtitle">All time bookings</p>
+              </div>
+            </div>
+            <div className="health-overview-card">
+              <div className="health-overview-icon health-overview-trend-up">
+                <OverviewIcon name="bell" />
+              </div>
+              <div className="health-overview-body">
+                <span className="health-overview-value">{upcomingAppointments}</span>
+                <h3 className="health-overview-title">Upcoming</h3>
+                <p className="health-overview-subtitle">{nextAppointmentSubtitle}</p>
+              </div>
+            </div>
+            <div className="health-overview-card">
+              <div className="health-overview-icon health-overview-trend-stable">
+                <OverviewIcon name="file" />
+              </div>
+              <div className="health-overview-body">
+                <span className="health-overview-value">{completedAppointments}</span>
+                <h3 className="health-overview-title">Completed</h3>
+                <p className="health-overview-subtitle">Past appointments</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ============ NEXT APPOINTMENT (if exists) ============ */}
+      {nextAppointment && (
+        <section className="dashboard-section" aria-labelledby="next-appointment-heading">
+          <div className="section-header">
+            <h2 id="next-appointment-heading">Next Appointment</h2>
+          </div>
+          <div
+            className="form-card"
+            style={{
+              padding: '1.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1.5rem',
+              flexWrap: 'wrap',
+              background: 'linear-gradient(135deg, var(--primary-light) 0%, var(--card-bg) 100%)',
+            }}
+          >
+            <div style={{
+              width: 60, height: 60, borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontWeight: 800, fontSize: '1.4rem', flexShrink: 0,
+            }}>
+              📅
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3 style={{ marginBottom: '0.25rem', fontSize: '1.15rem', color: 'var(--text-h)' }}>
+                {nextAppointment.doctorName || 'Doctor'}
+              </h3>
+              {nextAppointment.doctorSpecialty && (
+                <div style={{ color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                  {nextAppointment.doctorSpecialty}
+                </div>
+              )}
+              <div style={{ color: 'var(--text-light)', fontSize: '0.9rem' }}>
+                {new Date(nextAppointment.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at {nextAppointment.timeSlot || 'TBD'}
+              </div>
+              {nextAppointment.reason && (
+                <div style={{ color: 'var(--text)', fontSize: '0.875rem', marginTop: '0.35rem' }}>
+                  <strong>Reason:</strong> {nextAppointment.reason}
+                </div>
+              )}
+            </div>
+            <Link to="/appointments" className="btn-primary btn-sm">
+              Manage Appointments
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* ============ QUICK ACTION CARDS ============ */}
       <section className="dashboard-section" aria-labelledby="quick-actions-heading">
         <div className="section-header">

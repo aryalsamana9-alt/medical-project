@@ -65,4 +65,12 @@ export const formAPI = {
   getSubmissions: () => api.get("/submissions"),
 };
 
+export const appointmentAPI = {
+  createAppointment: (data) => api.post("/appointments", data),
+  getAppointments: () => api.get("/appointments"),
+  getUpcomingAppointments: () => api.get("/appointments/upcoming"),
+  getAppointmentById: (id) => api.get(`/appointments/${id}`),
+  cancelAppointment: (id) => api.patch(`/appointments/${id}/cancel`),
+};
+
 export default api;

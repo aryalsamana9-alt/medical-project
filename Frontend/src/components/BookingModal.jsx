@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useMedical } from '../context/MedicalContext';
+import { useAuth } from '../context/AuthContext';
 import { getDoctorById } from '../data/doctors';
+import { appointmentAPI } from '../api';
 
 const TIME_SLOTS = [
-  '09:00 AM – 10:00 AM',
-  '10:00 AM – 11:00 AM',
-  '11:00 AM – 12:00 PM',
-  '12:00 PM – 01:00 PM',
-  '01:00 PM – 02:00 PM',
-  '02:00 PM – 03:00 PM',
-  '03:00 PM – 04:00 PM',
-  '04:00 PM – 05:00 PM',
+  '09:00 AM - 10:00 AM',
+  '10:00 AM - 11:00 AM',
+  '11:00 AM - 12:00 PM',
+  '12:00 PM - 01:00 PM',
+  '01:00 PM - 02:00 PM',
+  '02:00 PM - 03:00 PM',
+  '03:00 PM - 04:00 PM',
+  '04:00 PM - 05:00 PM',
 ];
 
 function fireConfetti() {
@@ -45,7 +47,6 @@ function fireConfetti() {
   }
   container.appendChild(frag);
 
-  // Inject keyframes if not already present
   if (!document.getElementById('confetti-keyframes')) {
     const style = document.createElement('style');
     style.id = 'confetti-keyframes';
@@ -63,22 +64,45 @@ function fireConfetti() {
 
 export default function BookingModal() {
   const { showBookingModal, closeBookingModal, bookingDoctorId, addBooking } = useMedical();
+  const { user, isAuthenticated } = useAuth();
   const doctor = getDoctorById(bookingDoctorId);
 
   const [date, setDate] = useState('');
   const [timeSlot, setTimeSlot] = useState('');
-  const [consultType, setConsultType] = useState('');
+  const [patientName, setPatientName] = useState('');
+  const [patientPhone, setPatientPhone] = useState('');
+  const [patientEmail, setPatientEmail] = useState('');
+  const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   useEffect(() => {
     if (!showBookingModal) {
-      setDate(''); setTimeSlot(''); setConsultType(''); setNotes('');
-      setErrors([]); setSubmitted(false); setShowConfirm(false);
+      setDate('');
+      setTimeSlot('');
+      setPatientName('');
+      setPatientPhone('');
+      setPatientEmail('');
+      setReason('');
+      setNotes('');
+      setErrors([]);
+      setSubmitted(false);
+      setShowConfirm(false);
+      setIsSubmitting(false);
+      setApiError('');
+    } else {
+      // Auto-fill user data if available
+      if (user) {
+        setPatientName(user.full_name || '');
+        setPatientEmail(user.email || '');
+        setPatientPhone('');
+      }
     }
-  }, [showBookingModal]);
+  }, [showBookingModal, user]);
 
   if (!showBookingModal || !doctor) return null;
 
@@ -86,46 +110,72 @@ export default function BookingModal() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const minDate = tomorrow.toISOString().split('T')[0];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const errs = [];
+
+    if (!patientName.trim()) errs.push('Patient name is required.');
+    if (!patientEmail.trim()) errs.push('Email is required.');
+    if (!patientPhone.trim()) errs.push('Phone number is required.');
     if (!date) errs.push('Please select a date.');
     if (!timeSlot) errs.push('Please select a time slot.');
-    if (!consultType) errs.push('Please select a consultation type.');
+    if (!reason.trim()) errs.push('Reason for visit is required.');
+
     setErrors(errs);
     if (errs.length > 0) return;
 
-    const booking = {
-      id: `booking-${Date.now()}`,
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      doctorSpecialty: doctor.specialty,
-      date,
-      timeSlot: TIME_SLOTS[parseInt(timeSlot)],
-      type: consultType,
+    setIsSubmitting(true);
+    setApiError('');
+
+    const bookingData = {
+      doctor_id: doctor.id,
+      doctor_name: doctor.name,
+      patient_name: patientName.trim(),
+      patient_email: patientEmail.trim(),
+      patient_phone: patientPhone.trim(),
+      appointment_date: date,
+      appointment_time: TIME_SLOTS[parseInt(timeSlot)],
+      reason: reason.trim(),
       notes: notes.trim(),
-      bookedAt: Date.now(),
-      status: 'confirmed',
     };
 
-    addBooking(booking);
+    try {
+      // Try API first
+      if (isAuthenticated) {
+        await appointmentAPI.createAppointment(bookingData);
+      } else {
+        throw new Error('Not authenticated');
+      }
+    } catch (err) {
+      // Fallback to local storage if API fails
+      const localBooking = {
+        id: `booking-${Date.now()}`,
+        user_id: user?.id || 'local',
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        doctorSpecialty: doctor.specialty,
+        patientName: patientName.trim(),
+        patientEmail: patientEmail.trim(),
+        patientPhone: patientPhone.trim(),
+        date,
+        timeSlot: TIME_SLOTS[parseInt(timeSlot)],
+        reason: reason.trim(),
+        notes: notes.trim(),
+        bookedAt: Date.now(),
+        status: 'Confirmed',
+      };
+      addBooking(localBooking);
+    }
+
     setSubmitted(true);
     setShowConfirm(true);
+    setIsSubmitting(false);
     fireConfetti();
   };
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  const typeLabel = (t) => {
-    switch (t) {
-      case 'chat': return '💬 Chat';
-      case 'voice': return '📞 Voice';
-      case 'video': return '📹 Video';
-      default: return t;
-    }
   };
 
   // ---- Confirmation overlay ----
@@ -148,7 +198,6 @@ export default function BookingModal() {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Animated checkmark */}
           <div style={{ width: 72, height: 72, margin: '0 auto' }}>
             <svg width="72" height="72" viewBox="0 0 52 52">
               <circle
@@ -166,12 +215,11 @@ export default function BookingModal() {
             </svg>
           </div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '1.25rem 0 0.5rem', color: 'var(--text-h)' }}>
-            Booking Confirmed!
+            Appointment Booked!
           </h2>
           <p style={{ color: 'var(--text-light)', marginBottom: '1.5rem' }}>
-            Your consultation with <strong>{doctor.name}</strong> is scheduled for{' '}
-            <strong>{formatDate(date)}</strong> at <strong>{TIME_SLOTS[parseInt(timeSlot)]}</strong>{' '}
-            via <strong>{typeLabel(consultType)}</strong>.
+            Your appointment with <strong>{doctor.name}</strong> is scheduled for{' '}
+            <strong>{formatDate(date)}</strong> at <strong>{TIME_SLOTS[parseInt(timeSlot)]}</strong>.
           </p>
           <button
             className="btn-primary"
@@ -212,13 +260,14 @@ export default function BookingModal() {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.4rem', margin: 0 }}>📅 Book Consultation</h2>
+          <h2 style={{ fontSize: '1.4rem', margin: 0 }}>📅 Book Appointment</h2>
           <button
             onClick={closeBookingModal}
             style={{
               background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer',
               color: 'var(--text-muted)', lineHeight: 1, padding: '0.25rem',
             }}
+            aria-label="Close modal"
           >
             ×
           </button>
@@ -227,11 +276,47 @@ export default function BookingModal() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Doctor</label>
-            <input type="text" value={`${doctor.name} — ${doctor.specialty}`} readOnly />
+            <input type="text" value={`${doctor.name} - ${doctor.specialty}`} readOnly />
           </div>
 
           <div className="form-group">
-            <label>Preferred Date</label>
+            <label>Patient Name *</label>
+            <input
+              type="text"
+              value={patientName}
+              onChange={(e) => setPatientName(e.target.value)}
+              placeholder="Enter your full name"
+              required
+              className={errors.includes('Patient name is required.') ? 'error' : ''}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Email *</label>
+            <input
+              type="email"
+              value={patientEmail}
+              onChange={(e) => setPatientEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+              className={errors.includes('Email is required.') ? 'error' : ''}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Phone Number *</label>
+            <input
+              type="tel"
+              value={patientPhone}
+              onChange={(e) => setPatientPhone(e.target.value)}
+              placeholder="Enter your phone number"
+              required
+              className={errors.includes('Phone number is required.') ? 'error' : ''}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Preferred Date *</label>
             <input
               type="date"
               value={date}
@@ -243,7 +328,7 @@ export default function BookingModal() {
           </div>
 
           <div className="form-group">
-            <label>Time Slot</label>
+            <label>Time Slot *</label>
             <select
               value={timeSlot}
               onChange={(e) => setTimeSlot(e.target.value)}
@@ -258,28 +343,26 @@ export default function BookingModal() {
           </div>
 
           <div className="form-group">
-            <label>Consultation Type</label>
-            <select
-              value={consultType}
-              onChange={(e) => setConsultType(e.target.value)}
+            <label>Reason for Visit *</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Briefly describe the reason for your visit..."
+              maxLength={500}
+              rows={2}
               required
-              className={errors.includes('Please select a consultation type.') ? 'error' : ''}
-            >
-              <option value="">Select type</option>
-              <option value="chat">💬 Chat</option>
-              <option value="voice">📞 Voice</option>
-              <option value="video">📹 Video</option>
-            </select>
+              className={errors.includes('Reason for visit is required.') ? 'error' : ''}
+            />
           </div>
 
           <div className="form-group">
-            <label>Notes (optional)</label>
+            <label>Additional Notes (optional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Briefly describe what you'd like to discuss..."
+              placeholder="Any additional information..."
               maxLength={300}
-              rows={3}
+              rows={2}
             />
           </div>
 
@@ -289,9 +372,23 @@ export default function BookingModal() {
             </div>
           )}
 
+          {apiError && (
+            <div className="alert alert-error" style={{ marginBottom: '1rem' }}>
+              ⚠️ {apiError}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-            <button type="submit" className="btn-primary btn-full">Confirm Booking</button>
-            <button type="button" className="btn-secondary" onClick={closeBookingModal}>Cancel</button>
+            <button
+              type="submit"
+              className="btn-primary btn-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Booking...' : 'Confirm Booking'}
+            </button>
+            <button type="button" className="btn-secondary" onClick={closeBookingModal}>
+              Cancel
+            </button>
           </div>
         </form>
       </div>
