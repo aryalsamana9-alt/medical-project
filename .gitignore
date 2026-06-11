@@ -25,3 +25,6 @@ yarn-error.log*
 
 # Project tree snapshot
 project-tree.txt
+
+# Project prompt documentation
+PROMPT.md
