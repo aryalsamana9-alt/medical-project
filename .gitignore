@@ -22,3 +22,6 @@ yarn-error.log*
 
 # Vercel
 .vercel/
+
+# Project tree snapshot
+project-tree.txt
